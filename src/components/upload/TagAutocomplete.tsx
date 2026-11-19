@@ -38,31 +38,52 @@ export function TagAutocomplete({
   const inputId = useId();
   const listboxId = useId();
   const [isOpen, setIsOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const suggestions = getSuggestions(value, availableTags);
   const showList = isOpen && suggestions.length > 0;
+  const activeTag = showList ? suggestions[activeIndex] : undefined;
+
+  function close() {
+    setIsOpen(false);
+    setActiveIndex(-1);
+  }
 
   function select(tag: string) {
     onChange(applyTag(value, tag));
-    setIsOpen(false);
+    close();
   }
 
   return (
     <div className="tag-autocomplete">
       <label htmlFor={inputId}>{label}</label>
       <input
+        aria-activedescendant={activeTag ? `${listboxId}-${activeTag}` : undefined}
         aria-autocomplete="list"
         aria-controls={showList ? listboxId : undefined}
         aria-expanded={showList}
         autoComplete="off"
         id={inputId}
         name={name}
-        onBlur={() => setIsOpen(false)}
+        onBlur={close}
         onChange={(event) => {
           onChange(event.target.value);
           setIsOpen(true);
+          setActiveIndex(-1);
         }}
         onKeyDown={(event) => {
-          if (event.key === "Escape") setIsOpen(false);
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setIsOpen(true);
+            setActiveIndex((index) => Math.min(index + 1, suggestions.length - 1));
+          } else if (event.key === "ArrowUp" && showList) {
+            event.preventDefault();
+            setActiveIndex((index) => Math.max(index - 1, 0));
+          } else if (event.key === "Enter" && activeTag) {
+            event.preventDefault();
+            select(activeTag);
+          } else if (event.key === "Escape" && showList) {
+            close();
+          }
         }}
         placeholder={placeholder}
         role="combobox"
@@ -71,9 +92,9 @@ export function TagAutocomplete({
       />
       {showList ? (
         <ul aria-label="Sugestões de tags" className="tag-suggestions" id={listboxId} role="listbox">
-          {suggestions.map((tag) => (
+          {suggestions.map((tag, index) => (
             <li
-              aria-selected="false"
+              aria-selected={index === activeIndex}
               id={`${listboxId}-${tag}`}
               key={tag}
               onClick={() => select(tag)}
